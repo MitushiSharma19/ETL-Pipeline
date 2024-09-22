@@ -1,0 +1,46 @@
+import subprocess
+
+def import_data_to_hdfs(db_type, host_ip, port, db_name, user_name, password, table, target_path):
+    if db_type.lower() != "mysql":
+        print(f"Database type '{db_type}' not supported for this script.")
+        return
+
+    print("-------------------------------------------------")
+    print("|------ MySQL Legacy database detected ! ------|")
+    print("-------------------------------------------------")
+    print("Importing data from MySQL to HDFS....")
+
+    # Check the Target Directory on HDFS to Populate the CDRs
+    check_dir_command = f"hdfs dfs -test -d {target_path}/{table}"
+    result = subprocess.run(check_dir_command, shell=True)
+    
+    # If target directory exists, remove it
+    if result.returncode == 0:
+        remove_dir_command = f"hdfs dfs -rm -r {target_path}/{table}"
+        subprocess.run(remove_dir_command, shell=True)
+    
+    # Sqoop command for importing as Parquet file
+    sqoop_command = (
+        f"sqoop import --connect jdbc:mysql://{host_ip}:{port}/{db_name} --username {user_name} --password {password} --table {table} --warehouse-dir {target_path}/{table} --as-parquetfile -m 1"
+    )
+    result = subprocess.run(sqoop_command, shell=True)
+    
+    if result.returncode != 0:
+        print("Sqoop Import Command Not Executed Successfully")
+        exit(10)
+    
+    chmod_command = f"hdfs dfs -chmod -R 777 {target_path}/{table}"
+    subprocess.run(chmod_command, shell=True)
+
+if __name__ == "__main__":
+    # Define your variables here
+    db_type = "mysql"
+    host_ip = "insert your IP address"
+    port = "insert port number"
+    db_name = "insert db name"
+    user_name = "insert username"
+    password = "insert password"
+    table = "test_table"
+    target_path = "insert your target path"
+    
+    import_data_to_hdfs(db_type, host_ip, port, db_name, user_name, password, table, target_path)
