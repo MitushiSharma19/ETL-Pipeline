@@ -1,0 +1,33 @@
+import subprocess
+from desctable import descTable
+
+def create_and_load_hive_table(hive_username, hive_password, hive_db, hive_table_name, columns_def, target_path):
+    create_table_query = f"CREATE TABLE IF NOT EXISTS {hive_db}.{hive_table_name} ({columns_def}) STORED AS TEXTFILE"
+    create_command = f"hive -n {hive_username} -p {hive_password} -e \"{create_table_query}\""
+    subprocess.run(create_command, shell=True, check=True)
+
+    load_data_query = f"LOAD DATA INPATH '{target_path}' INTO TABLE {hive_db}.{hive_table_name}"
+    load_command = f"hive -n {hive_username} -p {hive_password} -e \"{load_data_query}\""
+    subprocess.run(load_command, shell=True, check=True)
+
+def main():
+    db_source = 'postgresql' #or any other database
+    host_ip = 'insert ip address'
+    username = 'insert username'
+    password = 'insert password'
+    db_name = 'insert db name'
+    db_port = write db port  # Make sure port is an integer
+    table_name = 'insert table name'
+
+    hive_username = 'insert hive username'
+    hive_password = 'insert hive password'
+    hive_db = 'insert hive db name'
+    hive_table_name = 'insert hive table name'
+    target_path = '/path/to/your/data'  
+
+    columns_info = descTable(db_source, host_ip, username, password, db_name, db_port, table_name)
+    create_and_load_hive_table(hive_username, hive_password, hive_db, hive_table_name, columns_info, target_path)
+
+if __name__ == "__main__":
+    main()
+
