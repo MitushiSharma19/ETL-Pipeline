@@ -1,0 +1,99 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+class DataTransformations:
+    @staticmethod
+    def drop_duplicates(df, subset=None):
+        df = df.dropDuplicates(subset=subset)
+        print("Duplicates dropped")
+        return df
+
+    @staticmethod
+    def sort_rows(df, by_columns: list):
+        df = df.orderBy(by_columns)
+        print("Rows sorted")
+        return df
+
+    @staticmethod
+    def remove_null_values(df):
+        df = df.na.drop()
+        print("Null values removed")
+        return df
+
+    @staticmethod
+    def remove_outliers(df, columns: list):
+        for column in columns:
+            quantiles = df.approxQuantile(column, [0.25, 0.75], 0.05)
+            Q1, Q3 = quantiles
+            IQR = Q3 - Q1
+            df = df.filter((col(column) >= (Q1 - 1.5 * IQR)) & (col(column) <= (Q3 + 1.5 * IQR)))
+        df = df.reset_index(drop=True)
+        print("Outliers removed")
+        return df
+
+    @staticmethod
+    def keep_columns(df, columns: list):
+        df = df.select(columns)
+        print("Columns kept")
+        return df
+
+    @staticmethod
+    def remove_columns(df, columns: list):
+        df = df.drop(*columns)
+        print("Columns removed")
+        return df
+
+def read_and_transform_parquet(hdfs_path, drop_duplicates=None, sort_rows=None, remove_null_values=False, remove_outliers=None, keep_columns=None, remove_columns=None):
+    # Create Spark session
+    spark = SparkSession.builder \
+        .appName("Data Transformation") \
+        .getOrCreate()
+    spark.sparkContext.setLogLevel("OFF")
+    # Read Parquet file from HDFS
+    df = spark.read.parquet(hdfs_path)
+    
+    print("Original Data:")
+    df.show()
+
+    # Shape before transformation
+    shape_before = (df.count(), len(df.columns))
+    print(f"Shape before transformation: {shape_before}")
+
+    # Perform Transformations
+    if drop_duplicates:
+        df = DataTransformations.drop_duplicates(df, subset=drop_duplicates)
+    if sort_rows:
+        df = DataTransformations.sort_rows(df, by_columns=sort_rows)
+    if remove_null_values:
+        df = DataTransformations.remove_null_values(df)
+    if remove_outliers:
+        df = DataTransformations.remove_outliers(df, columns=remove_outliers)
+    if keep_columns:
+        df = DataTransformations.keep_columns(df, columns=keep_columns)
+    if remove_columns:
+        df = DataTransformations.remove_columns(df, columns=remove_columns)
+
+    # Shape after transformation
+    shape_after = (df.count(), len(df.columns))
+    print(f"Shape after transformation: {shape_after}")
+
+    print("\nTransformed Data:")
+    df.show()
+
+    # Optionally write the transformed data back to HDFS
+    # df.write.mode('overwrite').parquet('path to save transformed data')
+
+    return df
+
+# Uncomment and modify the following section for testing
+# if __name__ == "__main__":
+#     hdfs_path = "insert hdfs path where data is saved"
+#     transformed_df = read_and_transform_parquet(
+#         hdfs_path,
+#         drop_duplicates=['column_name'],
+#         sort_rows=['column_name'],
+#         remove_null_values=True,
+#         remove_outliers=['column_name'],
+#         keep_columns=['column_name'],
+#         remove_columns=['column_name']
+#     )
